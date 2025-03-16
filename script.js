@@ -843,7 +843,13 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 	alertBoxDiv.innerHTML = message;
 
 	// Set the background
-	alertBoxDiv.classList.add(background);
+    const oldBackground = alertBoxDiv.style.backgroundColor;
+    if(background !== null){
+        if(background.startsWith('announcement'))
+	        alertBoxDiv.classList.add(background);
+        else
+            alertBoxDiv.style.backgroundColor = background;
+    }
 
 	// Start the animation
 	widgetLocked = true;
@@ -856,6 +862,7 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 		alertBoxDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
 		setTimeout(() => {
 			alertBoxDiv.classList = '';
+            alertBoxDiv.style.backgroundColor = oldBackground;
 			widgetLocked = false;
 			if (alertQueue.length > 0) {
 				console.debug("Pulling next alert from the queue");
