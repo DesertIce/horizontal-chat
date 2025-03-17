@@ -504,7 +504,7 @@ function YouTubeMessage(data) {
 		return;
 
 	// Don't post messages from users from the ignore list
-	if (ignoreUserList.includes(data.user.name))
+	if (ignoreUserList.includes(data.user.name.toLowerCase()))
 		return;
 
 	// Get a reference to the template
