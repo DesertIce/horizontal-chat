@@ -62,12 +62,23 @@ html {
 	line-height: 1.7em;
 	width: 100%;
 	text-align: center;
-	bottom: calc(-1 * var(--margin) - 2em);
+}
+
+#background {
+	position: absolute;
+	bottom: 0;
+	right: 50%;
+	transform: translateX(50%);
+	width: 100%;
+	height: 1.7em;
+	background: var(--background);
+	bottom: calc(-1 * var(--margin));
+	z-index: -100;
 }
 
 @keyframes showAlertBox {
 	0% {
-		bottom: calc(-1 * var(--margin) - 2em);
+		bottom: calc(-1 * var(--margin) - 1.7em);
 	}
 	100% {
 		bottom: 0px;
@@ -79,7 +90,7 @@ html {
 		bottom: 0px;
 	}
 	100% {
-		bottom: calc(-1 * var(--margin) - 2em);
+		bottom: calc(-1 * var(--margin) - 1.7em);
 	}
 }
 
@@ -118,15 +129,18 @@ li {
 .timestamp,
 .pronouns {
 	background: #adadad46;
-	border-radius: var(--border-radius);
-	font-size: 0.7rem;
-	padding: 5px 15px;
+	/* border-radius: var(--border-radius); */
+	border-radius: 1em;
+	font-size: 0.7em;
+	/* padding: 5px 15px; */
+	padding: 0.15em 0.5em;
+
 }
 
 .bits {
 	background: #adadad46;
 	border-radius: calc(var(--border-radius) / 2);
-	font-size: 0.7rem;
+	font-size: 0.7em;
 	padding: 5px 10px;
 }
 
@@ -156,6 +170,40 @@ li {
 	line-height: 1.7em;
 	margin: 0px 5px;
 }
+
+/* .firstMessage {
+	display: none;
+	font-size: 0.7em;
+} */
+
+/* .firstMessageHighlight {
+	background: #adadad46;
+	padding: 20px 40px;
+	border-radius: var(--border-radius);
+} */
+
+/* .reply {
+	display: none;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 0.7em;
+	opacity: 0.5;
+} */
+
+/* .card {
+	background: #adadad46;
+	padding: 20px 40px;
+	border-radius: var(--border-radius);
+} */
+
+/* .youtube-super-sticker {
+	display: block;
+} */
+
+/* .sticker-img {
+	height: 5em;
+} */
 
 /*****************/
 /** CARD COLORS **/
@@ -191,6 +239,22 @@ li {
 
 .streamelements {
 	background: linear-gradient(#263b8abf, #0a112abf) !important;
+}
+
+.patreon {
+	background: linear-gradient(#c76633, #fd5e0a) !important;
+}
+
+.kofi {
+	background: linear-gradient(#54c7ee, #08c2ff) !important;
+}
+
+.tipeeeStream {
+	background: linear-gradient(#120e23, #5d192a) !important;
+}
+
+.fourthwall {
+	background: linear-gradient(#405eb3, #0d3cb9) !important;
 }
 
 /****************/
@@ -230,3 +294,37 @@ li {
 		background-color: #D12025;
 	}
 }
+
+/*
+#message {
+	display: none;
+}
+
+#username {
+	display: none;
+}
+
+#colon-separator {
+	display: none;
+}
+
+#avatar {
+	display: none;
+}
+
+#platform {
+	display: none;
+}
+
+#badgeList {
+	display: none;
+}
+
+#timestamp {
+	display: none;
+}
+
+#pronouns {
+	display: none;
+}
+*/

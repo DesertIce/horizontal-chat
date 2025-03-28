@@ -21,11 +21,13 @@ const showPlatform = GetBooleanParam("showPlatform", true);
 const showAvatar = GetBooleanParam("showAvatar", true);
 const showTimestamps = GetBooleanParam("showTimestamps", false);
 const showBadges = GetBooleanParam("showBadges", true);
-const showPronouns = GetBooleanParam("showPronouns", true);
+const showPronouns = GetBooleanParam("showPronouns", false);
 const showUsername = GetBooleanParam("showUsername", true);
 const showMessage = GetBooleanParam("showMessage", true);
 const font = urlParams.get("font") || "";
 const fontSize = urlParams.get("fontSize") || "18";
+const background = urlParams.get("background") || "#000000";
+const opacity = urlParams.get("opacity") || "0.5";
 
 const hideAfter = GetIntParam("hideAfter") || 0;
 const excludeCommands = GetBooleanParam("excludeCommands", true);
@@ -34,6 +36,7 @@ const ignoreChatters = urlParams.get("ignoreChatters") || "";
 const showTwitchMessages = GetBooleanParam("showTwitchMessages", true);
 const showTwitchAnnouncements = GetBooleanParam("showTwitchAnnouncements", true);
 const showTwitchSubs = GetBooleanParam("showTwitchSubs", true);
+const showTwitchChannelPointRedemptions = GetBooleanParam("showTwitchChannelPointRedemptions", true);
 const showTwitchRaids = GetBooleanParam("showTwitchRaids", true);
 
 const showYouTubeMessages = GetBooleanParam("showYouTubeMessages", true);
@@ -43,10 +46,22 @@ const showYouTubeMemberships = GetBooleanParam("showYouTubeMemberships", true);
 
 const showStreamlabsDonations = GetBooleanParam("showStreamlabsDonations", true)
 const showStreamElementsTips = GetBooleanParam("showStreamElementsTips", true);
+const showPatreonMemberships = GetBooleanParam("showPatreonMemberships", true);
+const showKofiDonations = GetBooleanParam("showKofiDonations", true);
+const showTipeeeStreamDonations = GetBooleanParam("showTipeeeStreamDonations", true);
+const showFourthwallAlerts = GetBooleanParam("showFourthwallAlerts", true);
 
 // Set fonts for the widget
 document.body.style.fontFamily = font;
 document.body.style.fontSize = `${fontSize}px`;
+
+// Set the background color
+const opacity255 = Math.round(parseFloat(opacity) * 255);
+let hexOpacity = opacity255.toString(16);
+if (hexOpacity.length < 2) {
+	hexOpacity = "0" + hexOpacity;
+}
+document.documentElement.style.setProperty('--background', `${background}${hexOpacity}`);
 
 // Get a list of chatters to ignore
 const ignoreUserList = ignoreChatters.split(',').map(item => item.trim().toLowerCase()) || [];
@@ -106,6 +121,11 @@ client.on('Twitch.GiftSub', (response) => {
 client.on('Twitch.GiftBomb', (response) => {
 	console.debug(response.data);
 	TwitchGiftBomb(response.data);
+})
+
+client.on('Twitch.RewardRedemption', (response) => {
+	console.debug(response.data);
+	TwitchRewardRedemption(response.data);
 })
 
 client.on('Twitch.Raid', (response) => {
@@ -168,6 +188,66 @@ client.on('StreamElements.Tip', (response) => {
 	StreamElementsTip(response.data);
 })
 
+client.on('Patreon.PledgeCreated', (response) => {
+	console.debug(response.data);
+	PatreonPledgeCreated(response.data);
+})
+
+client.on('Kofi.Donation', (response) => {
+	console.debug(response.data);
+	KofiDonation(response.data);
+})
+
+client.on('Kofi.Subscription', (response) => {
+	console.debug(response.data);
+	KofiSubscription(response.data);
+})
+
+client.on('Kofi.Resubscription', (response) => {
+	console.debug(response.data);
+	KofiResubscription(response.data);
+})
+
+client.on('Kofi.ShopOrder', (response) => {
+	console.debug(response.data);
+	KofiShopOrder(response.data);
+})
+
+client.on('TipeeeStream.Donation', (response) => {
+	console.debug(response.data);
+	TipeeeStreamDonation(response.data);
+})
+
+client.on('Fourthwall.OrderPlaced', (response) => {
+	console.debug(response.data);
+	FourthwallOrderPlaced(response.data);
+})
+
+client.on('Fourthwall.Donation', (response) => {
+	console.debug(response.data);
+	FourthwallDonation(response.data);
+})
+
+client.on('Fourthwall.SubscriptionPurchased', (response) => {
+	console.debug(response.data);
+	FourthwallSubscriptionPurchased(response.data);
+})
+
+client.on('Fourthwall.GiftPurchase', (response) => {
+	console.debug(response.data);
+	FourthwallGiftPurchase(response.data);
+})
+
+client.on('Fourthwall.GiftDrawStarted', (response) => {
+	console.debug(response.data);
+	FourthwallGiftDrawStarted(response.data);
+})
+
+client.on('Fourthwall.GiftDrawEnd', (response) => {
+	console.debug(response.data);
+	FourthwallGiftDrawEnd(response.data);
+})
+
 
 
 /////////////////////
@@ -183,7 +263,7 @@ async function TwitchChatMessage(data) {
 		return;
 
 	// Don't post messages from users from the ignore list
-	if (ignoreUserList.includes(data.message.username))
+	if (ignoreUserList.includes(data.message.username.toLowerCase()))
 		return;
 
 	// Get a reference to the template
@@ -431,6 +511,21 @@ async function TwitchGiftBomb(data) {
 	ShowAlert(message, 'twitch');
 }
 
+async function TwitchRewardRedemption(data) {
+	if (!showTwitchChannelPointRedemptions)
+		return;
+
+	const username = data.user_name;
+	const rewardName = data.reward.title;
+	const cost = data.reward.cost;
+	const userInput = data.user_input;
+	const channelPointIcon = `<img src="icons/badges/twitch-channel-point.png" class="platform"/>`;
+
+	let message = `${username} redeemed ${rewardName} ${channelPointIcon} ${cost}`;
+
+	ShowAlert(message, 'twitch');
+}
+
 async function TwitchRaid(data) {
 	if (!showTwitchRaids)
 		return;
@@ -584,7 +679,7 @@ function YouTubeMessage(data) {
 	// Render emotes
 	for (i in data.emotes) {
 		const emoteElement = `<img src="${data.emotes[i].imageUrl}" class="emote"/>`;
-		messageDiv.innerHTML = messageDiv.innerHTML.replace(new RegExp(`\\b${data.emotes[i].name}\\b`), emoteElement);
+		messageDiv.innerHTML = messageDiv.innerHTML.replace(data.emotes[i].name, emoteElement);
 	}
 
 	// Render avatars
@@ -668,6 +763,144 @@ function StreamElementsTip(data) {
 	let message = `🪙 ${donater} donated ${currency}${formattedAmount}`;
 
 	ShowAlert(message, 'streamelements');
+}
+
+function PatreonPledgeCreated(data) {
+	if (!showPatreonMemberships)
+		return;
+
+	const user = data.attributes.full_name;
+	const amount = (data.attributes.will_pay_amount_cents/100).toFixed(2);
+	const patreonIcon = `<img src="icons/platforms/patreon.png" class="platform"/>`;
+
+	let message = `${patreonIcon} ${user} joined Patreon ($${amount})`;
+
+	ShowAlert(message, 'patreon');
+}
+
+function KofiDonation(data) {
+	if (!showKofiDonations)
+		return;
+
+	const user = data.from;
+	const amount = data.amount;
+	const currency = data.currency;
+	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+
+	let message = "";
+	if (currency == "USD")
+		message = `${kofiIcon} ${user} donated $${amount}`;
+	else
+		message = `${kofiIcon} ${user} donated ${currency} ${amount}`;
+
+	ShowAlert(message, 'kofi');
+}
+
+function KofiSubscription(data) {
+	if (!showKofiDonations)
+		return;
+
+	const user = data.from;
+	const amount = data.amount;
+	const currency = data.currency;
+	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+
+	let message = "";
+	if (currency == "USD")
+		message = `${kofiIcon} ${user} subscribed ($${amount})`;
+	else
+		message = `${kofiIcon} ${user} subscribed (${currency} ${amount})`;
+
+	ShowAlert(message, 'kofi');
+}
+
+function KofiResubscription(data) {
+	if (!showKofiDonations)
+		return;
+
+	const user = data.from;
+	const tier = data.tier;
+	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+
+	let message = `${kofiIcon} ${user} subscribed (${tier})`;
+
+	ShowAlert(message, 'kofi');
+}
+
+function KofiShopOrder(data) {
+	if (!showKofiDonations)
+		return;
+
+	const user = data.from;
+	const amount = data.amount;
+	const currency = data.currency;
+	const itemTotal = data.items.length;
+	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+	let formattedAmount = "";
+
+	if (amount == 0)
+		formattedAmount = ""
+	else if (currency == "USD")
+		formattedAmount = `($${amount})`;
+	else
+		formattedAmount = `(${currency} ${amount})`;
+
+	message = `${kofiIcon} ${user} ordered ${itemTotal} item(s) on Ko-fi ${formattedAmount}`;
+	ShowAlert(message, 'kofi');
+}
+
+function TipeeeStreamDonation(data) {
+	if (!showTipeeeStreamDonations)
+		return;
+
+	const user = data.username;
+	const amount = data.amount;
+	const currency = data.currency;
+	const tipeeeStreamIcon = `<img src="icons/platforms/tipeeeStream.png" class="platform"/>`;
+
+	let message = "";
+	if (currency == "USD")
+		message = `${tipeeeStreamIcon} ${user} donated $${amount}`;
+	else
+		message = `${tipeeeStreamIcon} ${user} donated ${currency} ${amount}`;
+
+	ShowAlert(message, 'tipeeeStream');
+}
+
+function FourthwallOrderPlaced(data) {
+	if (!showFourthwallAlerts)
+		return;
+
+}
+
+function FourthwallDonation(data) {
+	if (!showFourthwallAlerts)
+		return;
+
+}
+
+function FourthwallSubscriptionPurchased(data) {
+	if (!showFourthwallAlerts)
+		return;
+
+}
+
+function FourthwallGiftPurchase(data) {
+	if (!showFourthwallAlerts)
+		return;
+
+}
+
+function FourthwallGiftDrawStarted(data) {
+	if (!showFourthwallAlerts)
+		return;
+
+}
+
+function FourthwallGiftDrawEnd(data) {
+	if (!showFourthwallAlerts)
+		return;
+
 }
 
 
@@ -861,8 +1094,7 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 		messageListDiv.style.animation = 'showAlertBox 0.5s ease-in-out forwards';
 		alertBoxDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
 		setTimeout(() => {
-			alertBoxDiv.classList = '';
-            alertBoxDiv.style.backgroundColor = oldBackground;
+			alertBoxDiv.style.backgroundColor = oldBackground;
 			widgetLocked = false;
 			if (alertQueue.length > 0) {
 				console.debug("Pulling next alert from the queue");
