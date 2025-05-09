@@ -5,6 +5,10 @@
 	--border-radius: 20px;
 }
 
+body {
+	overflow: hidden;
+}
+
 html {
 	width: 100vw;
 	height: 100vh;
@@ -43,6 +47,7 @@ html {
 	bottom: 0;
 	right: 0;
 	display: flex;
+	align-items: flex-end;
 	flex-direction: row;
 	flex-wrap: nowrap;
 	text-justify: right;
@@ -57,11 +62,18 @@ html {
 	transform: translateX(50%);
 	overflow: hidden;
 	white-space: nowrap;
-	
+	width: 100%;
+	height: 1.7em;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+}
+
+#alertBoxContent {
 	font-weight: 700;
 	line-height: 1.7em;
-	width: 100%;
 	text-align: center;
+	/* background-color: red; */
 }
 
 #background {
@@ -80,6 +92,7 @@ html {
 	0% {
 		bottom: calc(-1 * var(--margin) - 1.7em);
 	}
+
 	100% {
 		bottom: 0px;
 	}
@@ -89,6 +102,7 @@ html {
 	0% {
 		bottom: 0px;
 	}
+
 	100% {
 		bottom: calc(-1 * var(--margin) - 1.7em);
 	}
@@ -97,21 +111,21 @@ html {
 li {
 	list-style: none;
 	overflow: hidden;
-	width: 0px;
+	max-width: 0px;
 	transition: all 1s ease-in-out;
 }
 
 .slide-fade li {
-	transition: all 1s ease-out;
-	opacity: 1;
+	transition: all var(--animation-speed) ease-out;
+	/* opacity: 1; */
 }
 
 .slide-fade li.show {
-	opacity: 1;
+	/* opacity: 1; */
 }
 
 #IPutThisHereSoICanCalculateHowBigEachMessageIsSupposedToBeBeforeIAddItToTheMessageList {
-    /* margin-top: 10px; */
+	/* margin-top: 10px; */
 	background: #2FB774;
 	display: inline;
 	opacity: 0;
@@ -145,11 +159,16 @@ li {
 }
 
 .platform,
-.badge,
-.emote {
+.badge {
 	height: 1em;
 	margin: 1px;
 	transform: translate(0px, 0.25em);
+}
+
+.emote {
+	height: 1.5em;
+	margin: 1px;
+	transform: translate(0px, 0.4em);
 }
 
 #badgeList {
@@ -176,7 +195,7 @@ li {
 	font-size: 0.7em;
 } */
 
-/* .firstMessageHighlight {
+/* .highlightMessage {
 	background: #adadad46;
 	padding: 20px 40px;
 	border-radius: var(--border-radius);
@@ -210,35 +229,35 @@ li {
 /*****************/
 
 .announcementBlue {
-	background: linear-gradient(#03d3d7BF, #8d49feBF) !important;
+	background: linear-gradient(#03d3d7, #8d49fe) !important;
 }
 
 .announcementGreen {
-	background: linear-gradient(#01da86BF, #55bee4BF) !important;
+	background: linear-gradient(#01da86, #55bee4) !important;
 }
 
 .announcementOrange {
-	background: linear-gradient(#feb419BF, #e1df00BF) !important;
+	background: linear-gradient(#feb419, #e1df00) !important;
 }
 
 .announcementPurple {
-	background: linear-gradient(#9548ffBF, #fc74e6BF) !important;
+	background: linear-gradient(#9548ff, #fc74e6) !important;
 }
 
 .twitch {
-	background: linear-gradient(#6d5ca1bf, #9146ffBF) !important;
+	background: linear-gradient(#6d5ca1, #9146ff) !important;
 }
 
 .youtube {
-	background: linear-gradient(#FF6C60BF, #FF0707BF) !important;
+	background: linear-gradient(#FF6C60, #FF0707) !important;
 }
 
 .streamlabs {
-	background: linear-gradient(#73dabbbf, #397765bf) !important;
+	background: linear-gradient(#73dabb, #397765) !important;
 }
 
 .streamelements {
-	background: linear-gradient(#263b8abf, #0a112abf) !important;
+	background: linear-gradient(#263b8a, #0a112a) !important;
 }
 
 .patreon {
@@ -254,7 +273,11 @@ li {
 }
 
 .fourthwall {
-	background: linear-gradient(#405eb3, #0d3cb9) !important;
+	background: linear-gradient(#466edb, #1c56f5) !important;
+}
+
+.blank {
+	background: #adadad00 !important;
 }
 
 /****************/
@@ -294,37 +317,3 @@ li {
 		background-color: #D12025;
 	}
 }
-
-/*
-#message {
-	display: none;
-}
-
-#username {
-	display: none;
-}
-
-#colon-separator {
-	display: none;
-}
-
-#avatar {
-	display: none;
-}
-
-#platform {
-	display: none;
-}
-
-#badgeList {
-	display: none;
-}
-
-#timestamp {
-	display: none;
-}
-
-#pronouns {
-	display: none;
-}
-*/

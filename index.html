@@ -13,26 +13,29 @@
 	<div id="mainContainer" class="slide-fade">
 		<ul id="messageList">
 		</ul>
-		<div id="alertBox"></div>
-		<div id="IPutThisHereSoICanCalculateHowBigEachMessageIsSupposedToBeBeforeIAddItToTheMessageList">			
+		<div id="alertBox">
+			<div id="alertBoxContent"></div>
 		</div>
+		<div id="background"></div>
+		<ul id="IPutThisHereSoICanCalculateHowBigEachMessageIsSupposedToBeBeforeIAddItToTheMessageList">			
+		</ul>
 	</div>
 
 	</div>
 
 	<template id="messageTemplate">
-			<div style="display: inline;">
-				<label id="userInfo" style="margin-left: 10px;">
-					<span id="platform"></span>
-					<span id="avatar"></span>
-					<span id="timestamp"></span>
-					<span id="badgeList"></span>
-					<span id="pronouns"></span>
-					<span id="username"></span>
-					<span id="colon-separator">: </span>
-				</label>
-				<span id="message"></span>
-			</div>
+		<div style="display: inline;">
+			<label id="userInfo" style="margin-left: 10px;">
+				<span id="platform"></span>
+				<span id="avatar"></span>
+				<span id="timestamp"></span>
+				<span id="badgeList"></span>
+				<span id="pronouns"></span>
+				<span id="username"></span>
+				<span id="colon-separator">: </span>
+			</label>
+			<span id="message"></span>
+		</div>
 	</template>
 </body>
 

@@ -75,6 +75,25 @@
 			"group": "Appearance"
 		},
 		{
+			"id": "background",
+			"label": "Background",
+			"description": "",
+			"type": "color",
+			"defaultValue": "#000000",
+			"group": "Appearance"
+		},
+		{
+			"id": "opacity",
+			"label": "Background Opacity",
+			"description": "",
+			"type": "number",
+			"defaultValue": "0.85",
+			"min": 0,
+			"max": 1,
+			"step": ".01",
+			"group": "Appearance"
+		},
+		{
 			"id": "hideAfter",
 			"label": "Hide After",
 			"description": "Messages fade after X seconds (0 to disable)",
@@ -98,6 +117,14 @@
 			"description": "Ignored chatters will not be shown",
 			"type": "text",
 			"defaultValue": "StreamElements,Streamlabs",
+			"group": "General"
+		},
+		{
+			"id": "groupConsecutiveMessages",
+			"label": "Group Consecutive Messages",
+			"description": "Hide username on consecutive messages from the same user",
+			"type": "checkbox",
+			"defaultValue": true,
 			"group": "General"
 		},
 		{
@@ -125,8 +152,24 @@
 			"group": "Which Twitch messages do you want to see?"
 		},
 		{
+			"id": "showTwitchChannelPointRedemptions",
+			"label": "Channel Point Redemptions",
+			"description": "",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which Twitch messages do you want to see?"
+		},
+		{
 			"id": "showTwitchRaids",
 			"label": "Raids",
+			"description": "",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which Twitch messages do you want to see?"
+		},
+		{
+			"id": "showTwitchSharedChat",
+			"label": "Shared Chat Messages",
 			"description": "",
 			"type": "checkbox",
 			"defaultValue": true,
@@ -167,7 +210,7 @@
 		{
 			"id": "showStreamlabsDonations",
 			"label": "Streamlabs Tips",
-			"description": "",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/streamlabs\" target=\"_blank\">Click to connect</a>",
 			"type": "checkbox",
 			"defaultValue": true,
 			"group": "Which donation messages do you want to see?"
@@ -175,10 +218,50 @@
 		{
 			"id": "showStreamElementsTips",
 			"label": "StreamElements Tips",
-			"description": "",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/streamelements\" target=\"_blank\">Click to connect</a>",
 			"type": "checkbox",
 			"defaultValue": true,
 			"group": "Which donation messages do you want to see?"
+		},
+		{
+			"id": "showPatreonMemberships",
+			"label": "Patreon Memberships",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/patreon\" target=\"_blank\">Click to connect</a>",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which donation messages do you want to see?"
+		},
+		{
+			"id": "showKofiDonations",
+			"label": "Ko-fi Donations",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/ko-fi\" target=\"_blank\">Click to connect</a>",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which donation messages do you want to see?"
+		},
+		{
+			"id": "showTipeeeStreamDonations",
+			"label": "TipeeeStream Donations",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/tipeee-stream\" target=\"_blank\">Click to connect</a>",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which donation messages do you want to see?"
+		},
+		{
+			"id": "showFourthwallAlerts",
+			"label": "Fourthwall Alerts",
+			"description": "<a href=\"https://docs.streamer.bot/guide/integrations/fourthwall\" target=\"_blank\">Click to connect</a>",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Which donation messages do you want to see?"
+		},
+		{
+			"id": "furryMode",
+			"label": "Furry Mode",
+			"description": "Meow",
+			"type": "checkbox",
+			"defaultValue": false,
+			"group": "Very Important Stuff"
 		},
 		{
 			"id": "address",

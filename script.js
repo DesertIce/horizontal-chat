@@ -29,15 +29,17 @@ const fontSize = urlParams.get("fontSize") || "18";
 const background = urlParams.get("background") || "#000000";
 const opacity = urlParams.get("opacity") || "0.5";
 
-const hideAfter = GetIntParam("hideAfter") || 0;
+const hideAfter = GetIntParam("hideAfter", 0);
 const excludeCommands = GetBooleanParam("excludeCommands", true);
 const ignoreChatters = urlParams.get("ignoreChatters") || "";
+const groupConsecutiveMessages = GetBooleanParam("groupConsecutiveMessages", true);
 
 const showTwitchMessages = GetBooleanParam("showTwitchMessages", true);
 const showTwitchAnnouncements = GetBooleanParam("showTwitchAnnouncements", true);
 const showTwitchSubs = GetBooleanParam("showTwitchSubs", true);
 const showTwitchChannelPointRedemptions = GetBooleanParam("showTwitchChannelPointRedemptions", true);
 const showTwitchRaids = GetBooleanParam("showTwitchRaids", true);
+const showTwitchSharedChat = GetBooleanParam("showTwitchSharedChat", true);
 
 const showYouTubeMessages = GetBooleanParam("showYouTubeMessages", true);
 const showYouTubeSuperChats = GetBooleanParam("showYouTubeSuperChats", true);
@@ -50,6 +52,10 @@ const showPatreonMemberships = GetBooleanParam("showPatreonMemberships", true);
 const showKofiDonations = GetBooleanParam("showKofiDonations", true);
 const showTipeeeStreamDonations = GetBooleanParam("showTipeeeStreamDonations", true);
 const showFourthwallAlerts = GetBooleanParam("showFourthwallAlerts", true);
+
+const furryMode = GetBooleanParam("furryMode", false);
+
+const animationSpeed = GetIntParam("animationSpeed", 0.5);
 
 // Set fonts for the widget
 document.body.style.fontFamily = font;
@@ -65,6 +71,9 @@ document.documentElement.style.setProperty('--background', `${background}${hexOp
 
 // Get a list of chatters to ignore
 const ignoreUserList = ignoreChatters.split(',').map(item => item.trim().toLowerCase()) || [];
+
+// Set the animation speed
+document.documentElement.style.setProperty('--animation-speed', `${animationSpeed}s`);
 
 
 
@@ -243,9 +252,9 @@ client.on('Fourthwall.GiftDrawStarted', (response) => {
 	FourthwallGiftDrawStarted(response.data);
 })
 
-client.on('Fourthwall.GiftDrawEnd', (response) => {
+client.on('Fourthwall.GiftDrawEnded', (response) => {
 	console.debug(response.data);
-	FourthwallGiftDrawEnd(response.data);
+	FourthwallGiftDrawEnded(response.data);
 })
 
 
@@ -273,7 +282,6 @@ async function TwitchChatMessage(data) {
 	const instance = template.content.cloneNode(true);
 
 	// Get divs
-	const messageContainer = instance.querySelector(".messageContainer");
 	const userInfoDiv = instance.querySelector("#userInfo");
 	const avatarDiv = instance.querySelector("#avatar");
 	const timestampDiv = instance.querySelector("#timestamp");
@@ -282,6 +290,15 @@ async function TwitchChatMessage(data) {
 	const pronounsDiv = instance.querySelector("#pronouns");
 	const usernameDiv = instance.querySelector("#username");
 	const messageDiv = instance.querySelector("#message");
+
+	// Set Shared Chat
+	// If the message is from Shared Chat AND the user indicated that they do NOT
+	// want shared chat messages, don't show it on screen
+	const isSharedChat = data.isSharedChat;
+	if (isSharedChat && !showTwitchSharedChat) {
+		if (!data.sharedChat.primarySource)
+			return;
+	}
 
 	// Set timestamp
 	if (showTimestamps) {
@@ -303,8 +320,12 @@ async function TwitchChatMessage(data) {
 	}
 
 	// Set the message data
-	const message = data.message.message;
+	let message = data.message.message;
 	const messageColor = data.message.color;
+
+	// Set furry mode
+	if (furryMode)
+		message = TranslateToFurry(message);
 
 	// Set message text
 	if (showMessage) {
@@ -320,7 +341,7 @@ async function TwitchChatMessage(data) {
 		const platformElements = `<img src="icons/platforms/twitch.png" class="platform"/>`;
 		platformDiv.innerHTML = platformElements;
 	}
-	
+
 
 	// Render badges
 	if (showBadges) {
@@ -336,7 +357,21 @@ async function TwitchChatMessage(data) {
 	// Render emotes
 	for (i in data.emotes) {
 		const emoteElement = `<img src="${data.emotes[i].imageUrl}" class="emote"/>`;
-		messageDiv.innerHTML = messageDiv.innerHTML.replace(new RegExp(`\\b${data.emotes[i].name}\\b`), emoteElement);
+		const emoteName = EscapeRegExp(data.emotes[i].name);
+
+		let regexPattern = emoteName;
+
+		// Check if the emote name consists only of word characters (alphanumeric and underscore)
+		if (/^\w+$/.test(emoteName)) {
+			regexPattern = `\\b${emoteName}\\b`;
+		}
+		else {
+			// For non-word emotes, ensure they are surrounded by non-word characters or boundaries
+			regexPattern = `(?:^|[^\\w])${emoteName}(?:$|[^\\w])`;
+		}
+
+		const regex = new RegExp(regexPattern, 'g');
+		messageDiv.innerHTML = messageDiv.innerHTML.replace(regex, emoteElement);
 	}
 
 	// Render cheermotes
@@ -363,7 +398,7 @@ async function TwitchChatMessage(data) {
 
 	// Hide the header if the same username sends a message twice in a row
 	const messageList = document.getElementById("messageList");
-	if (messageList.children.length > 0) {
+	if (groupConsecutiveMessages && messageList.children.length > 0) {
 		const lastPlatform = messageList.lastChild.dataset.platform;
 		const lastUserId = messageList.lastChild.dataset.userId;
 		if (lastPlatform == "twitch" && lastUserId == data.user.id)
@@ -373,35 +408,6 @@ async function TwitchChatMessage(data) {
 	AddMessageItem(instance, data.message.msgId, 'twitch', data.user.id);
 }
 
-function shadeColor(color, percent) {
-
-    var R = parseInt(color.substring(1,3),16);
-    var G = parseInt(color.substring(3,5),16);
-    var B = parseInt(color.substring(5,7),16);
-
-    R = parseInt(R * (100 + percent) / 100);
-    G = parseInt(G * (100 + percent) / 100);
-    B = parseInt(B * (100 + percent) / 100);
-
-    R = Math.min(R, 255);
-    G = Math.min(G, 255);
-    B = Math.min(B, 255);
-
-    R = Math.max(R, 0);
-    G = Math.max(G, 0);
-    B = Math.max(B, 0);
-
-    R = Math.round(R)
-    G = Math.round(G)
-    B = Math.round(B)
-
-    var RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
-    var GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
-    var BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
-
-    return "#"+RR+GG+BB;
-}
-
 async function TwitchAnnouncement(data) {
 	if (!showTwitchAnnouncements)
 		return;
@@ -409,7 +415,6 @@ async function TwitchAnnouncement(data) {
 	let background = null;
 
 	// Set the card background colors
-    const userColorAdjustment = -80;
 	switch (data.announcementColor) {
 		case "BLUE":
 			background = 'announcementBlue';
@@ -423,11 +428,6 @@ async function TwitchAnnouncement(data) {
 		case "PURPLE":
 			background = 'announcementPurple';
 			break;
-        case "PRIMARY":
-            background = shadeColor(data.user.color, userColorAdjustment);
-            break;
-        default:
-            background = shadeColor(data.announcementColor, userColorAdjustment);            
 	}
 
 	let message = data.text;
@@ -436,7 +436,21 @@ async function TwitchAnnouncement(data) {
 	for (i in data.parts) {
 		if (data.parts[i].type == `emote`) {
 			const emoteElement = `<img src="${data.parts[i].imageUrl}" class="emote"/>`;
-			message = message.replace(new RegExp(`\\b${data.parts[i].text}\\b`), emoteElement);
+			const emoteName = EscapeRegExp(data.parts[i].text);
+	
+			let regexPattern = emoteName;
+	
+			// Check if the emote name consists only of word characters (alphanumeric and underscore)
+			if (/^\w+$/.test(emoteName)) {
+				regexPattern = `\\b${emoteName}\\b`;
+			}
+			else {
+				// For non-word emotes, ensure they are surrounded by non-word characters or boundaries
+				regexPattern = `(?:^|[^\\w])${emoteName}(?:$|[^\\w])`;
+			}
+	
+			const regex = new RegExp(regexPattern, 'g');
+			message = message.replace(regex, emoteElement);
 		}
 	}
 
@@ -501,10 +515,14 @@ async function TwitchGiftSub(data) {
 async function TwitchGiftBomb(data) {
 	if (!showTwitchSubs)
 		return;
-	
-	const username = data.displayName;
-	const gifts = data.gifts;
-	const subTier = data.subTier;
+
+	//// The below is incorrect (Streamer.bot documentation is wrong)
+	// const username = data.displayName;
+	// const gifts = data.gifts;
+	// const subTier = data.subTier;
+	const username = data.user.name;
+	const gifts = data.recipients.length;
+	const subTier = data.sub_tier.charAt(0);
 
 	let message = `🎁 ${username} gifted ${gifts} Tier ${subTier} subs!`;
 
@@ -633,6 +651,10 @@ function YouTubeMessage(data) {
 		messageDiv.innerText = data.message;
 	}
 
+	// Set furry mode
+	if (furryMode)
+		messageDiv.innerText = TranslateToFurry(data.message);
+
 	// Render platform
 	if (showPlatform) {
 		const platformElements = `<img src="icons/platforms/youtube.png" class="platform"/>`;
@@ -692,7 +714,7 @@ function YouTubeMessage(data) {
 
 	// Hide the header if the same username sends a message twice in a row
 	const messageList = document.getElementById("messageList");
-	if (messageList.children.length > 0) {
+	if (groupConsecutiveMessages && messageList.children.length > 0) {
 		const lastPlatform = messageList.lastChild.dataset.platform;
 		const lastUserId = messageList.lastChild.dataset.userId;
 		if (lastPlatform == "youtube" && lastUserId == data.user.id)
@@ -770,7 +792,7 @@ function PatreonPledgeCreated(data) {
 		return;
 
 	const user = data.attributes.full_name;
-	const amount = (data.attributes.will_pay_amount_cents/100).toFixed(2);
+	const amount = (data.attributes.will_pay_amount_cents / 100).toFixed(2);
 	const patreonIcon = `<img src="icons/platforms/patreon.png" class="platform"/>`;
 
 	let message = `${patreonIcon} ${user} joined Patreon ($${amount})`;
@@ -871,36 +893,126 @@ function FourthwallOrderPlaced(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	let user = data.username;
+	const orderTotal = data.total;
+	const currency = data.currency;
+	const item = data.variants[0].name;
+	const itemsOrdered = data.variants.length;
+
+	let message = "";
+
+	// If there user did not provide a username, just say "Someone"
+	if (user == undefined)
+		user = "Someone"
+
+	// If the user ordered more than one item, write how many items they ordered
+	message += `${user} ordered ${item}`;
+	if (itemsOrdered > 1)
+		message += ` and ${itemsOrdered - 1} other item(s)!`
+
+	// If the user spent money, put the order total
+	if (orderTotal == 0)
+		message += ``;
+	else if (currency == "USD")
+		message += ` ($${orderTotal})`;
+	else
+		message += ` (${orderTotal} ${currency})`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
 function FourthwallDonation(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	let user = data.username;
+	const amount = data.amount;
+	const currency = data.currency;
+
+	let message = "";
+	if (currency == "USD")
+		message = `${user} donated $${amount}`;
+	else
+		message = `${user} donated ${currency} ${amount}`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
 function FourthwallSubscriptionPurchased(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	let user = data.nickname;
+	const amount = data.amount;
+	const currency = data.currency;
+
+	let message = "";
+	if (currency == "USD")
+		message = `${user} subscribed $${amount}`;
+	else
+		message = `${user} donsubscribedated ${currency} ${amount}`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
 function FourthwallGiftPurchase(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	let user = data.username;
+	const total = data.total;
+	const currency = data.currency;
+	const gifts = data.gifts.length;
+	const itemName = data.offer.name;
+
+	let message = "";
+
+	// If the user ordered more than one item, write how many items they ordered
+	message += `${user} gifted`;
+
+	// If there is more than one gifted item, display the number of gifts
+	if (gifts > 1)
+		message += ` ${gifts} x `;
+
+	// The name of the item to be given away
+	message += ` ${itemName}`;
+
+	// If the user spent money, put the order total
+	if (currency == "USD")
+		message += ` ($${total})`;
+	else
+		message += ` (${currency}${total})`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
 function FourthwallGiftDrawStarted(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	const durationSeconds = data.durationSeconds;
+	const itemName = data.offer.name;
+
+	let message = "";
+	message += `${user} gifted`;
+
+	// If the user ordered more than one item, write how many items they ordered
+	message += `🎁 ${itemName} Giveaway! • Type !join in the next ${durationSeconds} seconds for your chance to win!`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
-function FourthwallGiftDrawEnd(data) {
+function FourthwallGiftDrawEnded(data) {
 	if (!showFourthwallAlerts)
 		return;
 
+	let message = `🥳 GIVEAWAY ENDED 🥳`;
+
+	ShowAlert(message, 'fourthwall');
+
+	message = `Congratulations ${GetWinnersList(data.gifts)}!`;
+
+	ShowAlert(message, 'fourthwall');
 }
 
 
@@ -928,12 +1040,12 @@ function GetBooleanParam(paramName, defaultValue) {
 	}
 }
 
-function GetIntParam(paramName) {
+function GetIntParam(paramName, defaultValue) {
 	const urlParams = new URLSearchParams(window.location.search);
 	const paramValue = urlParams.get(paramName);
 
 	if (paramValue === null) {
-		return null; // or undefined, or a default value, depending on your needs
+		return defaultValue; // or undefined, or a default value, depending on your needs
 	}
 
 	const intValue = parseInt(paramValue, 10); // Parse as base 10 integer
@@ -975,11 +1087,13 @@ async function GetAvatar(username) {
 function AddMessageItem(element, elementID, platform, userId) {
 	// Calculate the height of the div before inserting
 	const tempDiv = document.getElementById('IPutThisHereSoICanCalculateHowBigEachMessageIsSupposedToBeBeforeIAddItToTheMessageList');
-	tempDiv.appendChild(element);
+	const tempDivTwoElectricBoogaloo = document.createElement('div');
+	tempDivTwoElectricBoogaloo.style.display = 'inline';
+	tempDivTwoElectricBoogaloo.appendChild(element);
+	tempDiv.appendChild(tempDivTwoElectricBoogaloo);
 
 	setTimeout(function () {
-		const calculatedWidth = tempDiv.offsetWidth + "px";
-		//console.log(calculatedWidth);
+		const calculatedWidth = tempDivTwoElectricBoogaloo.offsetWidth + "px";
 
 		// Create a new line item to add to the message list later
 		var lineItem = document.createElement('li');
@@ -988,16 +1102,18 @@ function AddMessageItem(element, elementID, platform, userId) {
 		lineItem.dataset.userId = userId;
 
 		// Move the element from the temp div to the new line item
-		while (tempDiv.firstChild) {
-			lineItem.appendChild(tempDiv.firstChild);
-		}
+		lineItem.appendChild(tempDiv.firstElementChild);
 
 		// Add the line item to the list and animate it
 		// We need to manually set the height as straight CSS can't animate on "height: auto"
 		messageList.appendChild(lineItem);
 		setTimeout(function () {
 			lineItem.className = lineItem.className + " show";
-			lineItem.style.width = calculatedWidth;
+			lineItem.style.maxWidth = calculatedWidth;
+			// After it's done animating, remove the width constraint in case the div needs to get longer
+			setTimeout(function () {
+				lineItem.style.maxWidth = "none";
+			}, 1000);
 		}, 10);
 
 		// Remove old messages that have gone off screen to save memory
@@ -1005,13 +1121,10 @@ function AddMessageItem(element, elementID, platform, userId) {
 			messageList.removeChild(messageList.firstChild);
 		}
 
-		tempDiv.innerHTML = '';
-		
-		if (hideAfter > 0)
-		{
+		if (hideAfter > 0) {
 			setTimeout(function () {
 				lineItem.style.opacity = 0;
-				setTimeout(function() {
+				setTimeout(function () {
 					messageList.removeChild(lineItem);
 				}, 1000);
 			}, hideAfter * 1000);
@@ -1070,31 +1183,29 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 
 	// Get divs
 	const messageListDiv = document.querySelector("#messageList");
+	const backgroundDiv = document.querySelector("#background");
 	const alertBoxDiv = document.querySelector("#alertBox");
+	const alertBoxContent = document.querySelector("#alertBoxContent");
 
 	// Set the message text
-	alertBoxDiv.innerHTML = message;
+	alertBoxContent.innerHTML	 = message;
 
 	// Set the background
-    const oldBackground = alertBoxDiv.style.backgroundColor;
-    if(background !== null){
-        if(background.startsWith('announcement'))
-	        alertBoxDiv.classList.add(background);
-        else
-            alertBoxDiv.style.backgroundColor = background;
-    }
+	alertBoxDiv.classList.add(background);
 
 	// Start the animation
 	widgetLocked = true;
-	messageListDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
+	// messageListDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
+	// backgroundDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
 	alertBoxDiv.style.animation = 'showAlertBox 0.5s ease-in-out forwards';
 
 	// To stop the animation (remove the animation property):
 	setTimeout(() => {
-		messageListDiv.style.animation = 'showAlertBox 0.5s ease-in-out forwards';
+		// messageListDiv.style.animation = 'showAlertBox 0.5s ease-in-out forwards';
+		// backgroundDiv.style.animation = 'showAlertBox 0.5s ease-in-out forwards';
 		alertBoxDiv.style.animation = 'hideAlertBox 0.5s ease-in-out forwards';
 		setTimeout(() => {
-			alertBoxDiv.style.backgroundColor = oldBackground;
+			alertBoxDiv.classList = '';
 			widgetLocked = false;
 			if (alertQueue.length > 0) {
 				console.debug("Pulling next alert from the queue");
@@ -1103,6 +1214,66 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 			}
 		}, 500);
 	}, duration); // Remove after 5 seconds
+}
+
+function GetWinnersList(gifts) {
+	const winners = gifts.map(gift => gift.winner);
+	const numWinners = winners.length;
+
+	if (numWinners === 0) {
+		return "";
+	} else if (numWinners === 1) {
+		return winners[0];
+	} else if (numWinners === 2) {
+		return `${winners[0]} and ${winners[1]}`;
+	} else {
+		const lastWinner = winners.pop();
+		const secondLastWinner = winners.pop();
+		return `${winners.join(", ")}, ${secondLastWinner} and ${lastWinner}`;
+	}
+}
+
+function TranslateToFurry(sentence) {
+	const words = sentence.toLowerCase().split(/\b/);
+
+	const furryWords = words.map(word => {
+		if (/\w+/.test(word)) {
+			let newWord = word;
+
+			// Common substitutions
+			newWord = newWord.replace(/l/g, 'w');
+			newWord = newWord.replace(/r/g, 'w');
+			newWord = newWord.replace(/th/g, 'f');
+			newWord = newWord.replace(/you/g, 'yous');
+			newWord = newWord.replace(/my/g, 'mah');
+			newWord = newWord.replace(/me/g, 'meh');
+			newWord = newWord.replace(/am/g, 'am');
+			newWord = newWord.replace(/is/g, 'is');
+			newWord = newWord.replace(/are/g, 'are');
+			newWord = newWord.replace(/very/g, 'vewy');
+			newWord = newWord.replace(/pretty/g, 'pwetty');
+			newWord = newWord.replace(/little/g, 'wittle');
+			newWord = newWord.replace(/nice/g, 'nyce');
+
+			// Random additions
+			if (Math.random() < 0.15) {
+				newWord += ' nya~';
+			} else if (Math.random() < 0.1) {
+				newWord += ' >w<';
+			} else if (Math.random() < 0.05) {
+				newWord += ' owo';
+			}
+
+			return newWord;
+		}
+		return word;
+	});
+
+	return furryWords.join('');
+}
+
+function EscapeRegExp(string) {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
 
