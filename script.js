@@ -357,12 +357,28 @@ async function TwitchChatMessage(data) {
 	// Render emotes
 	for (i in data.emotes) {
 		const emoteElement = `<img src="${data.emotes[i].imageUrl}" class="emote"/>`;
-		const emoteName = EscapeRegExp(data.emotes[i].name);
+
+		// Workaround for Streamer.bot bug: /me action messages have corrupted emote names
+		// containing the IRC protocol prefix "\u0001ACTION " instead of the actual emote name.
+		// Strip the prefix and use partial matching to find the emote in the message.
+		let rawEmoteName = data.emotes[i].name;
+		let isCorruptedEmote = false;
+		if (rawEmoteName.startsWith('\u0001ACTION ')) {
+			rawEmoteName = rawEmoteName.substring(8); // Strip "\u0001ACTION " (8 chars)
+			isCorruptedEmote = true;
+		}
+
+		const emoteName = EscapeRegExp(rawEmoteName);
 
 		let regexPattern = emoteName;
 
+		if (isCorruptedEmote) {
+			// For corrupted emotes, match the partial name followed by any word characters
+			// e.g., "desert" should match "desert141Snort"
+			regexPattern = `\\b${emoteName}\\w*\\b`;
+		}
 		// Check if the emote name consists only of word characters (alphanumeric and underscore)
-		if (/^\w+$/.test(emoteName)) {
+		else if (/^\w+$/.test(emoteName)) {
 			regexPattern = `\\b${emoteName}\\b`;
 		}
 		else {
