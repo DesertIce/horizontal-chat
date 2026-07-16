@@ -22,6 +22,7 @@ const showAvatar = GetBooleanParam("showAvatar", true);
 const showTimestamps = GetBooleanParam("showTimestamps", false);
 const showBadges = GetBooleanParam("showBadges", true);
 const showPronouns = GetBooleanParam("showPronouns", false);
+const showFlags = GetBooleanParam("showFlags", true);
 const showUsername = GetBooleanParam("showUsername", true);
 const showMessage = GetBooleanParam("showMessage", true);
 const font = urlParams.get("font") || "";
@@ -289,6 +290,7 @@ async function TwitchChatMessage(data) {
 	const badgeListDiv = instance.querySelector("#badgeList");
 	const pronounsDiv = instance.querySelector("#pronouns");
 	const usernameDiv = instance.querySelector("#username");
+	const flagDiv = instance.querySelector("#flag");
 	const messageDiv = instance.querySelector("#message");
 
 	// Set Shared Chat
@@ -318,6 +320,9 @@ async function TwitchChatMessage(data) {
 		pronounsDiv.classList.add("pronouns");
 		pronounsDiv.innerText = pronouns;
 	}
+
+	// Set flag
+	await HorizontalChatFlags.RenderFlag(flagDiv, data.user.id, showFlags);
 
 	// Set the message data
 	let message = data.message.message;

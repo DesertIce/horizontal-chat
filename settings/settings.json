@@ -41,6 +41,14 @@
 			"group": "Appearance"
 		},
 		{
+			"id": "showFlags",
+			"label": "Show Flags",
+			"description": "",
+			"type": "checkbox",
+			"defaultValue": true,
+			"group": "Appearance"
+		},
+		{
 			"id": "showUsername",
 			"label": "Show Username",
 			"description": "",

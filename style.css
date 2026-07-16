@@ -140,6 +140,12 @@ li {
 	border-radius: 50%
 }
 
+.user-flag {
+	height: 1em;
+	margin-left: 0.2em;
+	vertical-align: -0.1em;
+}
+
 .timestamp,
 .pronouns {
 	background: #adadad46;
