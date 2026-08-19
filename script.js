@@ -268,12 +268,19 @@ async function TwitchChatMessage(data) {
 	if (!showTwitchMessages)
 		return;
 
+	let message = data.text ?? "";
+	const username = data.user?.login ?? "anonymous";
+	const displayName = data.user?.name ?? "Anonymous";
+	const userId = data.user?.id ?? "anonymous";
+	const userColor = data.user?.color ?? "";
+	const userBadges = data.user?.badges ?? [];
+
 	// Don't post messages starting with "!"
-	if (data.message.message.startsWith("!") && excludeCommands)
+	if (message.startsWith("!") && excludeCommands)
 		return;
 
 	// Don't post messages from users from the ignore list
-	if (ignoreUserList.includes(data.message.username.toLowerCase()))
+	if (ignoreUserList.includes(username.toLowerCase()))
 		return;
 
 	// Get a reference to the template
@@ -296,11 +303,8 @@ async function TwitchChatMessage(data) {
 	// Set Shared Chat
 	// If the message is from Shared Chat AND the user indicated that they do NOT
 	// want shared chat messages, don't show it on screen
-	const isSharedChat = data.isSharedChat;
-	if (isSharedChat && !showTwitchSharedChat) {
-		if (!data.sharedChat.primarySource)
-			return;
-	}
+	if (data.isInSharedChat && data.isFromSharedChatGuest && !showTwitchSharedChat)
+		return;
 
 	// Set timestamp
 	if (showTimestamps) {
@@ -310,23 +314,23 @@ async function TwitchChatMessage(data) {
 
 	// Set the username info
 	if (showUsername) {
-		usernameDiv.innerText = data.message.displayName;
-		usernameDiv.style.color = data.message.color;
+		usernameDiv.innerText = displayName;
+		usernameDiv.style.color = userColor;
 	}
 
 	// Set pronouns
-	const pronouns = await BetterPronounsJS.GetPronouns(data.message.username, client);
+	const pronouns = data.user ? await BetterPronounsJS.GetPronouns(username, client) : null;
 	if (pronouns && showPronouns) {
 		pronounsDiv.classList.add("pronouns");
 		pronounsDiv.innerText = pronouns;
 	}
 
 	// Set flag
-	await HorizontalChatFlags.RenderFlag(flagDiv, data.user.id, showFlags);
+	if (data.user)
+		await HorizontalChatFlags.RenderFlag(flagDiv, data.user.id, showFlags);
 
 	// Set the message data
-	let message = data.message.message;
-	const messageColor = data.message.color;
+	const messageColor = userColor;
 
 	// Set furry mode
 	if (furryMode)
@@ -338,7 +342,7 @@ async function TwitchChatMessage(data) {
 	}
 
 	// Set the "action" color
-	if (data.message.isMe)
+	if (data.meta?.isMe)
 		messageDiv.style.color = messageColor;
 
 	// Render platform
@@ -351,9 +355,9 @@ async function TwitchChatMessage(data) {
 	// Render badges
 	if (showBadges) {
 		badgeListDiv.innerHTML = "";
-		for (i in data.message.badges) {
+		for (i in userBadges) {
 			const badge = new Image();
-			badge.src = data.message.badges[i].imageUrl;
+			badge.src = userBadges[i].imageUrl;
 			badge.classList.add("badge");
 			badgeListDiv.appendChild(badge);
 		}
@@ -361,29 +365,13 @@ async function TwitchChatMessage(data) {
 
 	// Render emotes
 	for (i in data.emotes) {
-		const emoteElement = `<img src="${data.emotes[i].imageUrl}" class="emote"/>`;
-
-		// Workaround for Streamer.bot bug: /me action messages have corrupted emote names
-		// containing the IRC protocol prefix "\u0001ACTION " instead of the actual emote name.
-		// Strip the prefix and use partial matching to find the emote in the message.
-		let rawEmoteName = data.emotes[i].name;
-		let isCorruptedEmote = false;
-		if (rawEmoteName.startsWith('\u0001ACTION ')) {
-			rawEmoteName = rawEmoteName.substring(8); // Strip "\u0001ACTION " (8 chars)
-			isCorruptedEmote = true;
-		}
-
-		const emoteName = EscapeRegExp(rawEmoteName);
+		const emoteElement = `<img src="${data.emotes[i].ImageUrl}" class="emote"/>`;
+		const emoteName = EscapeRegExp(data.emotes[i].Name);
 
 		let regexPattern = emoteName;
 
-		if (isCorruptedEmote) {
-			// For corrupted emotes, match the partial name followed by any word characters
-			// e.g., "desert" should match "desert141Snort"
-			regexPattern = `\\b${emoteName}\\w*\\b`;
-		}
 		// Check if the emote name consists only of word characters (alphanumeric and underscore)
-		else if (/^\w+$/.test(emoteName)) {
+		if (/^\w+$/.test(emoteName)) {
 			regexPattern = `\\b${emoteName}\\b`;
 		}
 		else {
@@ -397,19 +385,16 @@ async function TwitchChatMessage(data) {
 
 	// Render cheermotes
 	for (i in data.cheerEmotes) {
-		// const cheerEmoteElement = `<img src="${data.cheerEmotes[i].imageUrl}" class="emote"/>`;
-		// messageDiv.innerHTML = messageDiv.innerHTML.replace(new RegExp(`\\b${data.cheerEmotes[i].name}\\b`), cheerEmoteElement);
-		const bits = data.cheerEmotes[i].bits;
-		const imageUrl = data.cheerEmotes[i].imageUrl;
-		const name = data.cheerEmotes[i].name;
+		const bits = data.cheerEmotes[i].Bits;
+		const imageUrl = data.cheerEmotes[i].ImageUrl;
+		const name = data.cheerEmotes[i].Name;
 		const cheerEmoteElement = `<img src="${imageUrl}" class="emote"/>`;
 		const bitsElements = `<span class="bits">${bits}</span>`
 		messageDiv.innerHTML = messageDiv.innerHTML.replace(new RegExp(`\\b${name}${bits}\\b`, 'i'), cheerEmoteElement + bitsElements);
 	}
 
 	// Render avatars
-	if (showAvatar) {
-		const username = data.message.username;
+	if (showAvatar && data.user) {
 		const avatarURL = await GetAvatar(username);
 		const avatar = new Image();
 		avatar.src = avatarURL;
@@ -422,11 +407,11 @@ async function TwitchChatMessage(data) {
 	if (groupConsecutiveMessages && messageList.children.length > 0) {
 		const lastPlatform = messageList.lastChild.dataset.platform;
 		const lastUserId = messageList.lastChild.dataset.userId;
-		if (lastPlatform == "twitch" && lastUserId == data.user.id)
+		if (lastPlatform == "twitch" && lastUserId == userId)
 			userInfoDiv.style.display = "none";
 	}
 
-	AddMessageItem(instance, data.message.msgId, 'twitch', data.user.id);
+	AddMessageItem(instance, data.messageId, 'twitch', userId);
 }
 
 async function TwitchAnnouncement(data) {
