@@ -177,6 +177,11 @@ li {
 	transform: translate(0px, 0.4em);
 }
 
+.zero-width-emote {
+	margin-left: -1.5em;
+	pointer-events: none;
+}
+
 #badgeList {
 	margin: 0px 5px;
 }

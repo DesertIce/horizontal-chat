@@ -269,11 +269,12 @@ async function TwitchChatMessage(data) {
 		return;
 
 	let message = data.text ?? "";
-	const username = data.user?.login ?? "anonymous";
-	const displayName = data.user?.name ?? "Anonymous";
-	const userId = data.user?.id ?? "anonymous";
-	const userColor = data.user?.color ?? "";
-	const userBadges = data.user?.badges ?? [];
+	const user = data.anonymous ? null : data.user;
+	const username = user?.login ?? "anonymous";
+	const displayName = user?.name ?? "Anonymous";
+	const userId = user?.id ?? "anonymous";
+	const userColor = user?.color ?? "";
+	const userBadges = user?.badges ?? [];
 
 	// Don't post messages starting with "!"
 	if (message.startsWith("!") && excludeCommands)
@@ -319,15 +320,15 @@ async function TwitchChatMessage(data) {
 	}
 
 	// Set pronouns
-	const pronouns = data.user ? await BetterPronounsJS.GetPronouns(username, client) : null;
+	const pronouns = user ? await BetterPronounsJS.GetPronouns(username, client) : null;
 	if (pronouns && showPronouns) {
 		pronounsDiv.classList.add("pronouns");
 		pronounsDiv.innerText = pronouns;
 	}
 
 	// Set flag
-	if (data.user)
-		await HorizontalChatFlags.RenderFlag(flagDiv, data.user.id, showFlags);
+	if (user)
+		await HorizontalChatFlags.RenderFlag(flagDiv, user.id, showFlags);
 
 	// Set the message data
 	const messageColor = userColor;
@@ -340,6 +341,12 @@ async function TwitchChatMessage(data) {
 	if (showMessage) {
 		messageDiv.innerText = message;
 	}
+
+	const renderedMessageParts = showMessage && TwitchMessageRendering.RenderParts(
+		messageDiv,
+		data.parts,
+		furryMode ? TranslateToFurry : undefined,
+	);
 
 	// Set the "action" color
 	if (data.meta?.isMe)
@@ -363,38 +370,12 @@ async function TwitchChatMessage(data) {
 		}
 	}
 
-	// Render emotes
-	for (i in data.emotes) {
-		const emoteElement = `<img src="${data.emotes[i].ImageUrl}" class="emote"/>`;
-		const emoteName = EscapeRegExp(data.emotes[i].Name);
-
-		let regexPattern = emoteName;
-
-		// Check if the emote name consists only of word characters (alphanumeric and underscore)
-		if (/^\w+$/.test(emoteName)) {
-			regexPattern = `\\b${emoteName}\\b`;
-		}
-		else {
-			// For non-word emotes, ensure they are surrounded by non-word characters or boundaries
-			regexPattern = `(?:^|[^\\w])${emoteName}(?:$|[^\\w])`;
-		}
-
-		const regex = new RegExp(regexPattern, 'g');
-		messageDiv.innerHTML = messageDiv.innerHTML.replace(regex, emoteElement);
-	}
-
-	// Render cheermotes
-	for (i in data.cheerEmotes) {
-		const bits = data.cheerEmotes[i].Bits;
-		const imageUrl = data.cheerEmotes[i].ImageUrl;
-		const name = data.cheerEmotes[i].Name;
-		const cheerEmoteElement = `<img src="${imageUrl}" class="emote"/>`;
-		const bitsElements = `<span class="bits">${bits}</span>`
-		messageDiv.innerHTML = messageDiv.innerHTML.replace(new RegExp(`\\b${name}${bits}\\b`, 'i'), cheerEmoteElement + bitsElements);
-	}
+	// Fall back to the separate emote arrays when message parts are unavailable.
+	if (!renderedMessageParts)
+		TwitchMessageRendering.RenderFallback(messageDiv, data.emotes, data.cheerEmotes, data.bits);
 
 	// Render avatars
-	if (showAvatar && data.user) {
+	if (showAvatar && user) {
 		const avatarURL = await GetAvatar(username);
 		const avatar = new Image();
 		avatar.src = avatarURL;

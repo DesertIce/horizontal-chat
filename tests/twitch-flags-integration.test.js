@@ -100,7 +100,7 @@ test("wires the flag option and numeric Twitch user ID into chat rendering", () 
 	assert.match(script, /const flagDiv = instance\.querySelector\("#flag"\);/);
 	assert.match(
 		script,
-		/await HorizontalChatFlags\.RenderFlag\(flagDiv, data\.user\.id, showFlags\);/,
+		/await HorizontalChatFlags\.RenderFlag\(flagDiv, user\.id, showFlags\);/,
 	);
 	assert.match(stylesheet, /\.user-flag\s*\{/);
 });
