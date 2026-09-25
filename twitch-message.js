@@ -1,6 +1,8 @@
 (function installTwitchMessageRendering(global) {
 	"use strict";
 
+	const TEXT_NODE = 3;
+
 	function GetPartValue(part, camelCaseName, pascalCaseName) {
 		return part?.[camelCaseName] ?? part?.[pascalCaseName];
 	}
@@ -27,10 +29,7 @@
 			const isCheer = type === "cheer" || type === "cheermote";
 
 			if ((type === "emote" || isCheer) && imageUrl) {
-				const image = container.ownerDocument.createElement("img");
-				image.src = imageUrl;
-				image.alt = isCheer ? "" : text;
-				image.classList.add("emote");
+				const image = CreateEmoteImage(container.ownerDocument, imageUrl, isCheer ? "" : text);
 
 				if (GetPartValue(part, "zeroWidth", "ZeroWidth"))
 					image.classList.add("zero-width-emote");
@@ -60,25 +59,61 @@
 		return true;
 	}
 
-	function RenderFallback(container, emotes, cheerEmotes, totalBits) {
+	function CreateEmoteImage(document, imageUrl, alt) {
+		const image = document.createElement("img");
+		image.src = imageUrl;
+		image.alt = alt;
+		image.classList.add("emote");
+		return image;
+	}
+
+	// Splits the container's text nodes around each match, so message text is never parsed as HTML.
+	function ReplaceTextMatches(container, pattern, createNodes) {
+		const document = container.ownerDocument;
+
+		for (const node of Array.from(container.childNodes)) {
+			if (node.nodeType !== TEXT_NODE)
+				continue;
+
+			const text = node.nodeValue;
+			const nodes = [];
+			let lastIndex = 0;
+
+			for (const match of text.matchAll(pattern)) {
+				if (match.index > lastIndex)
+					nodes.push(document.createTextNode(text.slice(lastIndex, match.index)));
+
+				nodes.push(...createNodes(document, match[0]));
+				lastIndex = match.index + match[0].length;
+			}
+
+			if (nodes.length === 0)
+				continue;
+
+			if (lastIndex < text.length)
+				nodes.push(document.createTextNode(text.slice(lastIndex)));
+
+			node.replaceWith(...nodes);
+		}
+	}
+
+	function RenderEmotes(container, emotes) {
 		for (const emote of emotes ?? []) {
 			const imageUrl = GetPartValue(emote, "imageUrl", "ImageUrl");
 			const name = GetPartValue(emote, "name", "Name");
 			if (!imageUrl || !name)
 				continue;
 
-			const escapedName = EscapeRegExp(name);
-			const isWordEmote = /^\w+$/.test(name);
-			const pattern = isWordEmote
-				? `\\b${escapedName}\\b`
-				: `(^|[^\\w])${escapedName}(?=$|[^\\w])`;
-			const image = `<img src="${imageUrl}" class="emote"/>`;
-
-			container.innerHTML = container.innerHTML.replace(
-				new RegExp(pattern, "g"),
-				(match, leadingBoundary) => isWordEmote ? image : leadingBoundary + image,
+			ReplaceTextMatches(
+				container,
+				new RegExp(`(?<!\\w)${EscapeRegExp(name)}(?!\\w)`, "g"),
+				(document) => [CreateEmoteImage(document, imageUrl, name)],
 			);
 		}
+	}
+
+	function RenderFallback(container, emotes, cheerEmotes, totalBits) {
+		RenderEmotes(container, emotes);
 
 		for (const cheerEmote of cheerEmotes ?? []) {
 			const bits = GetPartValue(cheerEmote, "bits", "Bits") ?? totalBits;
@@ -88,13 +123,22 @@
 			if (bits == null || !imageUrl || !name)
 				continue;
 
-			const image = `<img src="${imageUrl}" class="emote"/>`;
-			const colorStyle = color ? ` style="color: ${color}"` : "";
-			const amount = `<span class="bits"${colorStyle}>${bits}</span>`;
-			const pattern = `\\b${EscapeRegExp(name)}${bits}\\b`;
-			container.innerHTML = container.innerHTML.replace(new RegExp(pattern, "gi"), image + amount);
+			ReplaceTextMatches(
+				container,
+				new RegExp(`\\b${EscapeRegExp(name)}${bits}\\b`, "gi"),
+				(document) => {
+					const amount = document.createElement("span");
+					amount.classList.add("bits");
+					amount.textContent = String(bits);
+
+					if (color)
+						amount.style.color = color;
+
+					return [CreateEmoteImage(document, imageUrl, ""), amount];
+				},
+			);
 		}
 	}
 
-	global.TwitchMessageRendering = { RenderParts, RenderFallback };
+	global.TwitchMessageRendering = { RenderParts, RenderEmotes, RenderFallback };
 })(globalThis);

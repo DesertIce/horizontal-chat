@@ -354,14 +354,12 @@ async function TwitchChatMessage(data) {
 
 	// Render platform
 	if (showPlatform) {
-		const platformElements = `<img src="icons/platforms/twitch.png" class="platform"/>`;
-		platformDiv.innerHTML = platformElements;
+		platformDiv.appendChild(CreatePlatformIcon("icons/platforms/twitch.png"));
 	}
 
 
 	// Render badges
 	if (showBadges) {
-		badgeListDiv.innerHTML = "";
 		for (i in userBadges) {
 			const badge = new Image();
 			badge.src = userBadges[i].imageUrl;
@@ -417,29 +415,10 @@ async function TwitchAnnouncement(data) {
 			break;
 	}
 
-	let message = data.text;
-
-	// Render emotes
-	for (i in data.parts) {
-		if (data.parts[i].type == `emote`) {
-			const emoteElement = `<img src="${data.parts[i].imageUrl}" class="emote"/>`;
-			const emoteName = EscapeRegExp(data.parts[i].text);
-	
-			let regexPattern = emoteName;
-	
-			// Check if the emote name consists only of word characters (alphanumeric and underscore)
-			if (/^\w+$/.test(emoteName)) {
-				regexPattern = `\\b${emoteName}\\b`;
-			}
-			else {
-				// For non-word emotes, ensure they are surrounded by non-word characters or boundaries
-				regexPattern = `(?:^|[^\\w])${emoteName}(?:$|[^\\w])`;
-			}
-	
-			const regex = new RegExp(regexPattern, 'g');
-			message = message.replace(regex, emoteElement);
-		}
-	}
+	// Render the text and emotes
+	const message = document.createElement("span");
+	if (!TwitchMessageRendering.RenderParts(message, data.parts))
+		message.textContent = data.text ?? "";
 
 	ShowAlert(message, background);
 }
@@ -524,9 +503,9 @@ async function TwitchRewardRedemption(data) {
 	const rewardName = data.reward.title;
 	const cost = data.reward.cost;
 	const userInput = data.user_input;
-	const channelPointIcon = `<img src="icons/badges/twitch-channel-point.png" class="platform"/>`;
+	const channelPointIcon = CreatePlatformIcon("icons/badges/twitch-channel-point.png");
 
-	let message = `${username} redeemed ${rewardName} ${channelPointIcon} ${cost}`;
+	let message = [`${username} redeemed ${rewardName} `, channelPointIcon, ` ${cost}`];
 
 	ShowAlert(message, 'twitch');
 }
@@ -644,8 +623,7 @@ function YouTubeMessage(data) {
 
 	// Render platform
 	if (showPlatform) {
-		const platformElements = `<img src="icons/platforms/youtube.png" class="platform"/>`;
-		platformDiv.innerHTML = platformElements;
+		platformDiv.appendChild(CreatePlatformIcon("icons/platforms/youtube.png"));
 	}
 
 	// Render badges
@@ -686,10 +664,7 @@ function YouTubeMessage(data) {
 	}
 
 	// Render emotes
-	for (i in data.emotes) {
-		const emoteElement = `<img src="${data.emotes[i].imageUrl}" class="emote"/>`;
-		messageDiv.innerHTML = messageDiv.innerHTML.replace(data.emotes[i].name, emoteElement);
-	}
+	TwitchMessageRendering.RenderEmotes(messageDiv, data.emotes);
 
 	// Render avatars
 	if (showAvatar) {
@@ -780,9 +755,9 @@ function PatreonPledgeCreated(data) {
 
 	const user = data.attributes.full_name;
 	const amount = (data.attributes.will_pay_amount_cents / 100).toFixed(2);
-	const patreonIcon = `<img src="icons/platforms/patreon.png" class="platform"/>`;
+	const patreonIcon = CreatePlatformIcon("icons/platforms/patreon.png");
 
-	let message = `${patreonIcon} ${user} joined Patreon ($${amount})`;
+	let message = [patreonIcon, ` ${user} joined Patreon ($${amount})`];
 
 	ShowAlert(message, 'patreon');
 }
@@ -794,13 +769,13 @@ function KofiDonation(data) {
 	const user = data.from;
 	const amount = data.amount;
 	const currency = data.currency;
-	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+	const kofiIcon = CreatePlatformIcon("icons/platforms/kofi.png");
 
-	let message = "";
+	let message = [];
 	if (currency == "USD")
-		message = `${kofiIcon} ${user} donated $${amount}`;
+		message = [kofiIcon, ` ${user} donated $${amount}`];
 	else
-		message = `${kofiIcon} ${user} donated ${currency} ${amount}`;
+		message = [kofiIcon, ` ${user} donated ${currency} ${amount}`];
 
 	ShowAlert(message, 'kofi');
 }
@@ -812,13 +787,13 @@ function KofiSubscription(data) {
 	const user = data.from;
 	const amount = data.amount;
 	const currency = data.currency;
-	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+	const kofiIcon = CreatePlatformIcon("icons/platforms/kofi.png");
 
-	let message = "";
+	let message = [];
 	if (currency == "USD")
-		message = `${kofiIcon} ${user} subscribed ($${amount})`;
+		message = [kofiIcon, ` ${user} subscribed ($${amount})`];
 	else
-		message = `${kofiIcon} ${user} subscribed (${currency} ${amount})`;
+		message = [kofiIcon, ` ${user} subscribed (${currency} ${amount})`];
 
 	ShowAlert(message, 'kofi');
 }
@@ -829,9 +804,9 @@ function KofiResubscription(data) {
 
 	const user = data.from;
 	const tier = data.tier;
-	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+	const kofiIcon = CreatePlatformIcon("icons/platforms/kofi.png");
 
-	let message = `${kofiIcon} ${user} subscribed (${tier})`;
+	let message = [kofiIcon, ` ${user} subscribed (${tier})`];
 
 	ShowAlert(message, 'kofi');
 }
@@ -844,7 +819,7 @@ function KofiShopOrder(data) {
 	const amount = data.amount;
 	const currency = data.currency;
 	const itemTotal = data.items.length;
-	const kofiIcon = `<img src="icons/platforms/kofi.png" class="platform"/>`;
+	const kofiIcon = CreatePlatformIcon("icons/platforms/kofi.png");
 	let formattedAmount = "";
 
 	if (amount == 0)
@@ -854,7 +829,7 @@ function KofiShopOrder(data) {
 	else
 		formattedAmount = `(${currency} ${amount})`;
 
-	message = `${kofiIcon} ${user} ordered ${itemTotal} item(s) on Ko-fi ${formattedAmount}`;
+	const message = [kofiIcon, ` ${user} ordered ${itemTotal} item(s) on Ko-fi ${formattedAmount}`];
 	ShowAlert(message, 'kofi');
 }
 
@@ -865,13 +840,13 @@ function TipeeeStreamDonation(data) {
 	const user = data.username;
 	const amount = data.amount;
 	const currency = data.currency;
-	const tipeeeStreamIcon = `<img src="icons/platforms/tipeeeStream.png" class="platform"/>`;
+	const tipeeeStreamIcon = CreatePlatformIcon("icons/platforms/tipeeeStream.png");
 
-	let message = "";
+	let message = [];
 	if (currency == "USD")
-		message = `${tipeeeStreamIcon} ${user} donated $${amount}`;
+		message = [tipeeeStreamIcon, ` ${user} donated $${amount}`];
 	else
-		message = `${tipeeeStreamIcon} ${user} donated ${currency} ${amount}`;
+		message = [tipeeeStreamIcon, ` ${user} donated ${currency} ${amount}`];
 
 	ShowAlert(message, 'tipeeeStream');
 }
@@ -1157,6 +1132,7 @@ function FindFirstImageUrl(jsonObject) {
 	return iterate(jsonObject);
 }
 
+// The message may be a string, a DOM node, or an array of them. Strings are always rendered as text.
 function ShowAlert(message, background = null, duration = animationDuration) {
 
 	// Check if the widget is in the middle of an animation
@@ -1175,7 +1151,7 @@ function ShowAlert(message, background = null, duration = animationDuration) {
 	const alertBoxContent = document.querySelector("#alertBoxContent");
 
 	// Set the message text
-	alertBoxContent.innerHTML	 = message;
+	alertBoxContent.replaceChildren(...[message].flat());
 
 	// Set the background
 	alertBoxDiv.classList.add(background);
@@ -1259,8 +1235,11 @@ function TranslateToFurry(sentence) {
 	return furryWords.join('');
 }
 
-function EscapeRegExp(string) {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+function CreatePlatformIcon(src) {
+	const icon = document.createElement("img");
+	icon.src = src;
+	icon.classList.add("platform");
+	return icon;
 }
 
 

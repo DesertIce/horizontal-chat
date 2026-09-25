@@ -3,52 +3,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
+const { CreateDocument, SerializeChildren } = require("./fake-dom.js");
 
 const root = path.join(__dirname, "..");
 const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const overlayScript = fs.readFileSync(path.join(root, "script.js"), "utf8");
 const renderingScript = fs.readFileSync(path.join(root, "twitch-message.js"), "utf8");
-
-function CreateDocument() {
-	const document = {
-		createElement(tagName) {
-			return CreateNode(document, tagName);
-		},
-		createTextNode(text) {
-			return { nodeType: 3, textContent: text };
-		},
-	};
-
-	return document;
-}
-
-function CreateNode(document, tagName) {
-	const classes = [];
-	return {
-		tagName: tagName.toUpperCase(),
-		ownerDocument: document,
-		children: [],
-		classList: {
-			add(className) {
-				classes.push(className);
-			},
-			contains(className) {
-				return classes.includes(className);
-			},
-		},
-		style: {},
-		attributes: {},
-		appendChild(child) {
-			this.children.push(child);
-		},
-		replaceChildren(...children) {
-			this.children = children;
-		},
-		setAttribute(name, value) {
-			this.attributes[name] = value;
-		},
-	};
-}
 
 function LoadRendering() {
 	const context = {};
@@ -69,7 +29,7 @@ test("loads Twitch message rendering before the overlay", () => {
 
 test("renders every field in a Streamer.bot cheer message part", () => {
 	const document = CreateDocument();
-	const container = CreateNode(document, "span");
+	const container = document.createElement("span");
 	const rendering = LoadRendering();
 	const imageUrl = "https://d3aqoihi2n8ty8.cloudfront.net/actions/cheer/dark/animated/100000/4.gif";
 
@@ -83,9 +43,9 @@ test("renders every field in a Streamer.bot cheer message part", () => {
 	}]);
 
 	assert.equal(rendered, true);
-	assert.equal(container.children.length, 2);
+	assert.equal(container.childNodes.length, 2);
 
-	const [image, bits] = container.children;
+	const [image, bits] = container.childNodes;
 	assert.equal(image.tagName, "IMG");
 	assert.equal(image.src, imageUrl);
 	assert.equal(image.alt, "");
@@ -101,7 +61,7 @@ test("renders every field in a Streamer.bot cheer message part", () => {
 
 test("preserves part order and handles text, emotes, and zero-width overlays", () => {
 	const document = CreateDocument();
-	const container = CreateNode(document, "span");
+	const container = document.createElement("span");
 	const rendering = LoadRendering();
 
 	rendering.RenderParts(container, [
@@ -111,27 +71,27 @@ test("preserves part order and handles text, emotes, and zero-width overlays", (
 		{ type: "mention", text: " @viewer" },
 	], (text) => text.toUpperCase());
 
-	assert.equal(container.children[0].textContent, "HELLO ");
-	assert.equal(container.children[1].alt, "Kappa");
-	assert.equal(container.children[2].classList.contains("zero-width-emote"), true);
-	assert.equal(container.children[3].textContent, " @viewer");
+	assert.equal(container.childNodes[0].textContent, "HELLO ");
+	assert.equal(container.childNodes[1].alt, "Kappa");
+	assert.equal(container.childNodes[2].classList.contains("zero-width-emote"), true);
+	assert.equal(container.childNodes[3].textContent, " @viewer");
 });
 
 test("falls back to the plain message when parts are unavailable", () => {
 	const document = CreateDocument();
-	const container = CreateNode(document, "span");
+	const container = document.createElement("span");
 	const rendering = LoadRendering();
 
 	assert.equal(rendering.RenderParts(container, null), false);
 	assert.equal(rendering.RenderParts(container, []), false);
-	assert.deepEqual(container.children, []);
+	assert.deepEqual(container.childNodes, []);
 });
 
 test("fallback rendering supports both field casings and repeated tokens", () => {
 	const document = CreateDocument();
-	const container = CreateNode(document, "span");
+	const container = document.createElement("span");
 	const rendering = LoadRendering();
-	container.innerHTML = "hello :)! Cheer25 cheer25";
+	container.textContent = "hello :)! Cheer25 cheer25";
 
 	rendering.RenderFallback(
 		container,
@@ -146,9 +106,53 @@ test("fallback rendering supports both field casings and repeated tokens", () =>
 	);
 
 	assert.equal(
-		container.innerHTML,
-		'hello <img src="https://example.com/smile.png" class="emote"/>! '
-			+ '<img src="https://example.com/cheer.gif" class="emote"/><span class="bits" style="color: #f3a71a">25</span> '
-			+ '<img src="https://example.com/cheer.gif" class="emote"/><span class="bits" style="color: #f3a71a">25</span>',
+		SerializeChildren(container),
+		'hello <img src="https://example.com/smile.png" class="emote">! '
+			+ '<img src="https://example.com/cheer.gif" class="emote"><span class="bits" style="color: #f3a71a">25</span> '
+			+ '<img src="https://example.com/cheer.gif" class="emote"><span class="bits" style="color: #f3a71a">25</span>',
 	);
+});
+
+test("fallback rendering only matches emotes on word boundaries, including adjacent emotes", () => {
+	const document = CreateDocument();
+	const container = document.createElement("span");
+	const rendering = LoadRendering();
+	container.textContent = "Kappa KappaPride xKappa :):) a:)";
+
+	rendering.RenderFallback(container, [
+		{ name: "Kappa", imageUrl: "https://example.com/kappa.png" },
+		{ name: ":)", imageUrl: "https://example.com/smile.png" },
+	]);
+
+	assert.equal(
+		SerializeChildren(container),
+		'<img src="https://example.com/kappa.png" class="emote"> KappaPride xKappa '
+			+ '<img src="https://example.com/smile.png" class="emote"><img src="https://example.com/smile.png" class="emote"> a:)',
+	);
+});
+
+test("fallback rendering keeps HTML in message text and emote fields inert", () => {
+	const document = CreateDocument();
+	const container = document.createElement("span");
+	const rendering = LoadRendering();
+	const payload = '<img src=x onerror="alert(1)">';
+	const imageUrl = 'https://example.com/a.png" onerror="alert(2)';
+	container.textContent = `${payload} Kappa &lt; Cheer5`;
+
+	rendering.RenderFallback(
+		container,
+		[{ name: "Kappa", imageUrl }, { name: "lt", imageUrl }],
+		[{ name: "Cheer", bits: 5, color: "red;background:url(x)", imageUrl }],
+	);
+
+	const [text, emote, amp, ltEmote, separator, cheer, bits] = container.childNodes;
+	assert.equal(container.childNodes.length, 7);
+	assert.equal(text.nodeValue, `${payload} `);
+	assert.equal(emote.src, imageUrl);
+	assert.equal(amp.nodeValue, " &");
+	assert.equal(ltEmote.src, imageUrl);
+	assert.equal(separator.nodeValue, "; ");
+	assert.equal(cheer.src, imageUrl);
+	assert.equal(bits.textContent, "5");
+	assert.equal(bits.style.color, "red;background:url(x)");
 });
